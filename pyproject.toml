@@ -22,3 +22,6 @@ avocado-decompress = "avocado._cli.decompress:main"
 [project.urls]
 Homepage = "https://github.com/pypa/sampleproject"
 Issues = "https://github.com/pypa/sampleproject/issues"
+
+[tool.setuptools.package-data]
+"avocado._native" = ["lib/*.dylib", "lib/*.so", "lib/*.dll"]

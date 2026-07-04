@@ -21,6 +21,51 @@ pip install -e .
 
 This also registers the command-line tools described below.
 
+## Building the package
+
+`avocado` combines a Python package with a native C library (`libavocado`). The
+native library must be built **before** the Python package is installed or built,
+since `ctypes` loads it from a fixed path inside the package
+(`src/avocado/_native/lib/`).
+
+### 1. Build the native library
+
+```bash
+cmake -S native -B native/build
+cmake --build native/build
+```
+
+This compiles `native/src/*.c` and places the result
+(`libavocado.dylib` / `libavocado.so` / `avocado.dll`, depending on the platform)
+directly into `src/avocado/_native/lib/`, where the Python bindings expect it.
+
+### 2. Build/install the Python package
+
+For local development, an editable install picks up the native library directly
+from the source tree:
+
+```bash
+pip install -e .
+```
+
+To build a distributable wheel/sdist instead:
+
+```bash
+python -m build
+```
+
+The native library is declared as package data (see `[tool.setuptools.package-data]`
+in `pyproject.toml`), so `libavocado.*` is bundled into wheels built this way as
+well — as long as it already exists under `src/avocado/_native/lib/` when step 2
+runs. Rebuild step 1 first if you change any file under `native/`.
+
+> **Note:** the resulting wheel is still tagged as pure-Python
+> (`py3-none-any`), even though it contains a platform-specific binary. It works
+> for local use, but is not safe to publish as-is for distribution across
+> platforms — that would require building it as a proper platform wheel (e.g.
+> via a build backend that compiles the native library as part of the build,
+> such as `scikit-build-core` or a `setuptools.Extension`).
+
 ## Command-line usage
 
 Three commands cover the full round-trip. They are meant to be used in sequence:
