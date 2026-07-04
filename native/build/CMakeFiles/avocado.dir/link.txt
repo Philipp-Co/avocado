@@ -1,1 +1,0 @@
-/usr/bin/cc  -arch arm64 -dynamiclib -Wl,-headerpad_max_install_names -o /Users/philippkroll/Repositories/json_compress/src/avocado/_native/lib/libavocado.dylib -install_name @rpath/libavocado.dylib CMakeFiles/avocado.dir/src/compress.c.o

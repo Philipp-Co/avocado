@@ -1,8 +1,0 @@
-[
-{
-  "directory": "/Users/philippkroll/Repositories/json_compress/native/build",
-  "command": "/usr/bin/cc -Davocado_EXPORTS -I/Users/philippkroll/Repositories/json_compress/native/include -std=c11 -arch arm64 -fPIC -Wall -Wextra -Wpedantic -Wconversion -o CMakeFiles/avocado.dir/src/compress.c.o -c /Users/philippkroll/Repositories/json_compress/native/src/compress.c",
-  "file": "/Users/philippkroll/Repositories/json_compress/native/src/compress.c",
-  "output": "CMakeFiles/avocado.dir/src/compress.c.o"
-}
-]

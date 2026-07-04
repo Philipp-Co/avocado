@@ -1,4 +1,0 @@
-[console_scripts]
-avocado-codes = avocado._cli.generate_codes:main
-avocado-compress = avocado._cli.compress:main
-avocado-decompress = avocado._cli.decompress:main

@@ -1,3 +1,0 @@
-/Users/philippkroll/Repositories/json_compress/native/build/CMakeFiles/avocado.dir
-/Users/philippkroll/Repositories/json_compress/native/build/CMakeFiles/edit_cache.dir
-/Users/philippkroll/Repositories/json_compress/native/build/CMakeFiles/rebuild_cache.dir
