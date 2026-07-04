@@ -1,0 +1,24 @@
+[project]
+name = "avodaco"
+version = "0.0.0"
+authors = [
+  { name="Philipp Kroll", email="author@example.com" },
+]
+description = "A Library for compressing JSON Objects."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.scripts]
+avocado-codes = "avocado._cli.generate_codes:main"
+avocado-compress = "avocado._cli.compress:main"
+avocado-decompress = "avocado._cli.decompress:main"
+
+[project.urls]
+Homepage = "https://github.com/pypa/sampleproject"
+Issues = "https://github.com/pypa/sampleproject/issues"
