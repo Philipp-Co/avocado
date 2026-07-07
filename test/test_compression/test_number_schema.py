@@ -21,7 +21,7 @@ class Schema1(Schema):
     pass
 
 class Schema2(Schema):
-    field = fields.List(fields.Float())
+    field = fields.List(fields.Float(), validate=[validate.Length(max=5)])
 
 #
 # ---------------------------------------------------------------------------------------------------------------------

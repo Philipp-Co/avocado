@@ -27,7 +27,7 @@ class TestNested(Schema):
             validate.OneOf(['Test', 'haka'])
         ]
     )
-    list_field = fields.List(fields.Integer())
+    list_field = fields.List(fields.Integer(), validate=[validate.Length(max=5)])
     nested_field = fields.Nested(TestNested2())
 
 
