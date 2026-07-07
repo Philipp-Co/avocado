@@ -1,8 +1,15 @@
+
+#
+# ---------------------------------------------------------------------------------------------------------------------
+#
 from marshmallow import Schema, fields, validate 
 from marshmallow.fields import Field
 from typing import Dict, Any, Tuple, Set
 from .generate_codes import generate_huffman_codes, _build_huffman_tree
 
+#
+# ---------------------------------------------------------------------------------------------------------------------
+#
 
 
 class SchemaCodeGenerator:
@@ -173,3 +180,6 @@ class SchemaCodeGenerator:
 
     pass
 
+#
+# ---------------------------------------------------------------------------------------------------------------------
+#

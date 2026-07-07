@@ -93,7 +93,7 @@ class TestCompression(TestCase):
                         'list_field' : [
                             {
                                 'nested_field': {
-                                    'integer_field': integer_item,
+                                    'integer_field': integer_item + 1,
                                     'boolean_field': boolean_value,
                                     'string_field': string_item,
                                 },

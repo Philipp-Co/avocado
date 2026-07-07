@@ -3,6 +3,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 //
 #include <avocado/compress.h>
+#include "include/bwt.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -75,6 +76,15 @@ int32_t AVOCADO_Encode(AVOCADO_Codec_t instance, const char *input, char *output
     output[1] = (char) ((number_of_bits >> 8) & 0xFFU);
     output[2] = (char) ((number_of_bits >> 16) & 0xFFU);
     output[3] = (char) ((number_of_bits >> 24) & 0xFFU); 
+
+    char *buffer = malloc(strlen(input) + 1);
+    memcpy(buffer, input, strlen(input) + 1);
+    AVOCADO_Bwt(input, buffer); 
+    for(size_t i=0;i<(strlen(input)+1); ++i)
+    {
+        printf("%c", buffer[i]);
+    }
+    printf("\n");
 
     size_t current_bit = 0;
     for(size_t i=0;i<number_of_characters;++i)
