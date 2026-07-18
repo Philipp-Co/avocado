@@ -13,6 +13,20 @@
 // --------------------------------------------------------------------------------------------------------------------
 //
 
+#if defined(_WIN32)
+#  if defined(AVOCADO_BUILD_DLL)
+#    define AVOCADO_API __declspec(dllexport)
+#  else
+#    define AVOCADO_API __declspec(dllimport)
+#  endif
+#else
+#  define AVOCADO_API __attribute__((visibility("default")))
+#endif
+
+//
+// --------------------------------------------------------------------------------------------------------------------
+//
+
 struct AVOCADO_Codec;
 typedef struct AVOCADO_Codec* AVOCADO_Codec_t;
 //
@@ -35,13 +49,13 @@ typedef struct
 ///
 /// \param[in] codes: The new Instance is constructed from this Code Table.
 ///
-AVOCADO_Codec_t AVOCADO_Init(const Codes_t *codes);
+AVOCADO_API AVOCADO_Codec_t AVOCADO_Init(const Codes_t *codes);
 ///
 /// \brief  Destroy an Instance.
 /// \param[in/out] instance:    When calling this function "instance" must point to a valid Object.
 ///                             If it was possible to destroy the given Instance the Value of "instance" will be set to NULL.
 ///
-void AVOCADO_DeInit(AVOCADO_Codec_t *instance);
+AVOCADO_API void AVOCADO_DeInit(AVOCADO_Codec_t *instance);
 ///
 /// \brief  Encode a given Inputstring.
 ///
@@ -52,7 +66,7 @@ void AVOCADO_DeInit(AVOCADO_Codec_t *instance);
 ///
 /// \returns    The Number of Bits which where written to the Outputbuffer. Or -1 if an Error occured.
 ///
-int32_t AVOCADO_Encode(AVOCADO_Codec_t instance, const char *input, char *output, uint32_t size);
+AVOCADO_API int32_t AVOCADO_Encode(AVOCADO_Codec_t instance, const char *input, char *output, uint32_t size);
 ///
 /// \brief  Decode a given Inputstring.
 ///
@@ -63,7 +77,7 @@ int32_t AVOCADO_Encode(AVOCADO_Codec_t instance, const char *input, char *output
 ///
 /// \returns The Number of Bytes written to the "output". -1 if an Error occured.
 ///
-int32_t AVOCADO_Decode(AVOCADO_Codec_t instance, const char *input, char *output, uint32_t size);
+AVOCADO_API int32_t AVOCADO_Decode(AVOCADO_Codec_t instance, const char *input, char *output, uint32_t size);
 
 //
 // --------------------------------------------------------------------------------------------------------------------
