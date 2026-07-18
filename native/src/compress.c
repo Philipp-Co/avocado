@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include "map.h"
 
 //
 // --------------------------------------------------------------------------------------------------------------------
@@ -24,6 +26,7 @@ typedef struct
 struct AVOCADO_Codec
 {
     BinaryCodes_t codes;
+    AVOCADO_Map_t map;
 };
 
 //
@@ -49,6 +52,9 @@ AVOCADO_Codec_t AVOCADO_Init(const Codes_t *codes)
             codes->codes[i]
         );
     }
+
+    AVOCADO_InitializeMapFromCodes(&codec->map, codes);
+
     return codec;
 }
 
@@ -68,22 +74,24 @@ int32_t AVOCADO_Encode(AVOCADO_Codec_t instance, const char *input, char *output
     uint32_t number_of_bits = 0U;
     for(size_t i=0;i < number_of_characters; ++i)
     {
-        number_of_bits += instance->codes.codes[(uint8_t)input[i]].size;
+        const uint8_t symbol = (uint8_t)input[i];
+        number_of_bits += instance->codes.codes[symbol].size;
     }
 
-    output[0] = (char) (number_of_bits & 0xFFU);
-    output[1] = (char) ((number_of_bits >> 8) & 0xFFU);
-    output[2] = (char) ((number_of_bits >> 16) & 0xFFU);
-    output[3] = (char) ((number_of_bits >> 24) & 0xFFU); 
+    output[0] = (char) ((uint8_t)(number_of_bits & 0xFFU));
+    output[1] = (char) ((uint8_t)((number_of_bits >> 8) & 0xFFU));
+    output[2] = (char) ((uint8_t)((number_of_bits >> 16) & 0xFFU));
+    output[3] = (char) ((uint8_t)((number_of_bits >> 24) & 0xFFU)); 
 
-    size_t current_bit = 0;
-    for(size_t i=0;i<number_of_characters;++i)
+    uint32_t current_bit = 0U;
+    for(size_t i=0U;i<number_of_characters;++i)
     {
-        for(size_t j=0;j<instance->codes.codes[(uint8_t)input[i]].size;++j)
+        const uint8_t symbol = (uint8_t)input[i];
+        for(uint32_t j=0;j<instance->codes.codes[symbol].size;++j)
         {
-            const uint32_t byte = (((uint32_t)current_bit) / 8U);
-            const uint32_t bit = (((uint32_t)current_bit) % 8U);
-            output[4 + byte] |= (instance->codes.codes[(uint8_t)input[i]].code & (1 << j)) ? (1 << bit) : 0; 
+            const uint32_t byte = current_bit / 8U;
+            const uint32_t bit = current_bit % 8U;
+            output[4U + byte] |= (instance->codes.codes[symbol].code & (1U << j)) ? (1U << bit) : 0U; 
             current_bit++;
         }
     }
@@ -94,57 +102,43 @@ int32_t AVOCADO_Encode(AVOCADO_Codec_t instance, const char *input, char *output
 // --------------------------------------------------------------------------------------------------------------------
 //
 
-#include <stdbool.h>
-
-struct HuffmanTreeNode;
-
-struct HuffmanTreeNode 
-{
-    char c;
-    struct HuffmanTreeNode *left;
-    struct HuffmanTreeNode *right;
-};
-
-typedef struct 
-{
-    struct HuffmanTreeNode *node; 
-} HuffmanTreeIterator_t;
-
-static char AVOCADO_HuffmanTreeIteratorSymbol(HuffmanTreeIterator_t *it);
-static bool AVOCADO_HuffmanTreeIteratorNextBit(HuffmanTreeIterator_t *it, uint32_t bit);
-static bool AVOCADO_HuffmanTreeIteratorIsLeaf(const HuffmanTreeIterator_t *it);
-
-typedef struct
-{
-    struct HuffmanTreeNode *root;
-} HuffmanTree_t;
-
-static HuffmanTree_t AVOCADO_CreateHuffmanTree(BinaryCodes_t *codes); 
-static HuffmanTreeIterator_t AVOCADO_HuffmanTreeIterator(HuffmanTree_t *t);
-
 int32_t AVOCADO_Decode(AVOCADO_Codec_t instance, const char *cstr, char *output, uint32_t size)
 {
+    //
+    // Read the number of Bits used.
+    // Assume that the inputs number of Bytes fits these Bits.
+    //  -> In some Cases there can be some unused Bits.
+    //
     uint32_t number_of_bits = (((uint32_t)cstr[0]) & 0xFFU) | ((((uint32_t)(cstr[1])) << 8) & 0xFF00U) | ((((uint32_t)(cstr[2])) << 24) & 0xFF0000U) | ((((uint32_t)(cstr[3])) << 24) & 0xFF000000U);
-    HuffmanTree_t tree = AVOCADO_CreateHuffmanTree(&instance->codes);
-    uint32_t output_character = 0U; 
-    uint32_t i = 0U;
-    HuffmanTreeIterator_t it = AVOCADO_HuffmanTreeIterator(&tree); 
-    while((i < number_of_bits) && (output_character < (size - 1U)))
+    //
+    // Prepare LUT Algorithm.
+    //
+    uint32_t next_output_character = 0U;
+    uint32_t buffer = 0U;
+    uint32_t current_bit = 0U;
+    const AVOCADO_MapValue_t *value = NULL;
+    while((current_bit < number_of_bits) && (next_output_character < size))
     {
-        const uint32_t byte = i / 8U;
-        const uint32_t bit = i % 8U;
-        if (
-            AVOCADO_HuffmanTreeIteratorNextBit(
-                &it, (((uint8_t)cstr[4 + byte]) & (1U << bit)) ? 1U : 0U
-            )
-        )
+        const uint32_t byte = current_bit / 8U;
+        const uint32_t bit = current_bit % 8U;
+        const uint32_t lo_byte_as_u32 = (uint32_t)((uint8_t)cstr[4 + byte]);        // If char is < 0 then Cast to uint32_t will populate Register with 1s... 
+        const uint32_t hi_byte_as_u32 = (uint32_t)((uint8_t)cstr[4 + byte + 1]);    // Therefore first cast to uint8_t, no more negative Numbers, then cast to uint32_t. 
+        const uint32_t lo_bits = lo_byte_as_u32 >> bit; 
+        const uint32_t hi_bits = hi_byte_as_u32 << (8U - bit);
+        buffer = (
+            lo_bits | hi_bits
+        ) & 0xFFU;                                                                  // Must be Masked for the special case when bit = 0 and 8U - bit = 8. 
+
+        value = AVOCADO_MapGetValue(&instance->map, buffer);
+        if((NULL == value) || (value->number_of_bits == 0))
         {
-            output[output_character++] = AVOCADO_HuffmanTreeIteratorSymbol(&it);
-            it = AVOCADO_HuffmanTreeIterator(&tree);
+            return -1;
         }
-        ++i;
+        current_bit += value->number_of_bits;
+
+        output[next_output_character++] = value->symbol;
     }
-    return output_character < (size - 1U) ? (int32_t)output_character : -1;
+    return next_output_character < (size - 1U) ? (int32_t)next_output_character : -1;
 }
 
 
@@ -164,103 +158,6 @@ static void AVOCADO_UnicodeToBinaryCode(BinaryCodes_t *bin, char c, const char *
     bin->codes[(uint8_t)c].size = (uint32_t)strlen(unicode); 
 }
 
-static char AVOCADO_HuffmanTreeIteratorSymbol(HuffmanTreeIterator_t *it)
-{
-    return it->node->c;
-}
-
-static bool AVOCADO_HuffmanTreeIteratorNextBit(HuffmanTreeIterator_t *it, uint32_t bit)
-{
-    if(NULL == it->node)
-    {
-        return false;
-    }
-    if(AVOCADO_HuffmanTreeIteratorIsLeaf(it))
-    {
-        return true;
-    }
-    
-    if(bit)
-    {
-        it->node = it->node->right;
-    }
-    else
-    {
-        it->node = it->node->left;
-    }
-
-    return it->node != NULL && AVOCADO_HuffmanTreeIteratorIsLeaf(it);
-}
-
-static bool AVOCADO_HuffmanTreeIteratorIsLeaf(const HuffmanTreeIterator_t *it)
-{
-    return it->node->left == NULL && it->node->right == NULL;
-}
-
-static void AVOCADO_HuffmanTreeAddNode(struct HuffmanTreeNode *node, char c, uint32_t code, uint32_t bit, uint32_t max_bit)
-{
-    if(bit >= max_bit)
-    {
-        node->c = c;
-    }
-    else
-    {
-        if((code & bit) != 0U)
-        {
-            if(node->right == NULL)
-            {
-                struct HuffmanTreeNode *new_node = malloc(sizeof(struct HuffmanTreeNode));
-                new_node->c = 0;
-                new_node->left = NULL;
-                new_node->right = NULL;
-                node->right = new_node;
-            }
-            AVOCADO_HuffmanTreeAddNode(node->right, c, code, bit << 1, max_bit);
-        }
-        else
-        {
-            if(node->left == NULL)
-            {
-                struct HuffmanTreeNode *new_node = malloc(sizeof(struct HuffmanTreeNode));
-                new_node->c = 0;
-                new_node->left = NULL;
-                new_node->right = NULL;
-                node->left = new_node;
-            }
-            AVOCADO_HuffmanTreeAddNode(node->left, c, code, bit << 1, max_bit);
-        }
-    }
-}
-
-static HuffmanTree_t AVOCADO_CreateHuffmanTree(BinaryCodes_t *codes)
-{
-    struct HuffmanTreeNode *node = malloc(sizeof(struct HuffmanTreeNode));
-    node->c = 0;
-    node->left = NULL;
-    node->right = NULL;
-    HuffmanTree_t t = {
-        .root=node
-    };
-    for(size_t i=0;i<256;++i)
-    {
-        if(codes->codes[i].size > 0)
-        {
-            AVOCADO_HuffmanTreeAddNode(
-                node, (char)i, codes->codes[i].code, 1U, 1U << codes->codes[i].size 
-            );    
-            
-        }
-    }
-    return t;
-} 
-
-static HuffmanTreeIterator_t AVOCADO_HuffmanTreeIterator(HuffmanTree_t *t)
-{
-    HuffmanTreeIterator_t it = {
-        .node=t->root
-    };
-    return it;
-}
 //
 // --------------------------------------------------------------------------------------------------------------------
 //

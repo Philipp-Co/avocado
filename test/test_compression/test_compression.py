@@ -116,10 +116,11 @@ class TestCompression(TestCase):
         pass
     
     def test_schema_3(self) -> None:
+        codes = Avocado.generate_codes(
+            Schema3()
+        )
         b: Avocado = c().from_dict(
-            Avocado.generate_codes(
-                Schema3()
-            )
+            codes
         )
         daten: Dict[str, Any] = {
             'nullable_integer_field': None,
