@@ -16,6 +16,20 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Position Independent Code ist fuer Shared Libraries Pflicht.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# --- Build-Typ --------------------------------------------------------------
+# Ohne explizite Angabe (-DCMAKE_BUILD_TYPE=...) auf Release bauen.
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+# GNU/Clang setzen fuer Release standardmaessig "-O3 -DNDEBUG"; hier auf
+# -O2 ueberschreiben.
+set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
+
+# --- Link-Time-Optimization ---------------------------------------------
+include(CheckIPOSupported)
+check_ipo_supported(RESULT AVOCADO_IPO_SUPPORTED OUTPUT AVOCADO_IPO_ERROR)
+
 # --- Wohin wird gebaut ----------------------------------------------------
 # Default: direkt in das Python-Package, damit ctypes die Lib per
 # relativem Pfad findet. Ueberschreibbar per -DAVOCADO_LIB_OUTPUT_DIR=...
@@ -42,6 +56,43 @@ set_target_properties(avocado PROPERTIES
 # Header: <avocado/...> aufloesbar; PUBLIC, damit auch Consumer sie sehen.
 target_include_directories(avocado PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+if(AVOCADO_IPO_SUPPORTED)
+    set_target_properties(avocado PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+    message(WARNING "LTO nicht unterstuetzt: ${AVOCADO_IPO_ERROR}")
+endif()
+
+# --- Debug-Symbole ----------------------------------------------------------
+# Im Release-Build Debug-Symbole aus der Lib entfernen. "-S" (GNU ld & Apple
+# ld64) strippt nur Debug-Infos und laesst die Export-Symboltabelle intakt,
+# die ctypes zum Aufloesen der Funktionen braucht.
+if(NOT MSVC)
+    target_link_options(avocado PRIVATE
+        $<$<CONFIG:Release>:-Wl,-S>)
+endif()
+
+# --- Dead-Code Stripping -----------------------------------------------
+# Jede Funktion/jedes Datum in eigener Section, damit der Linker
+# ungenutzten Code beim Linken vollstaendig entfernen kann.
+if(NOT MSVC)
+    target_compile_options(avocado PRIVATE -ffunction-sections -fdata-sections)
+
+    if(APPLE)
+        target_link_options(avocado PRIVATE -Wl,-dead_strip)
+    else()
+        target_link_options(avocado PRIVATE -Wl,--gc-sections)
+    endif()
+endif()
+
+# --- Sichtbarkeit --------------------------------------------------------
+# Standardmaessig alle Symbole verstecken; nur die API in compress.h wird
+# ueber das AVOCADO_API-Makro explizit exportiert.
+if(NOT MSVC)
+    target_compile_options(avocado PRIVATE -fvisibility=hidden)
+endif()
+
+target_compile_definitions(avocado PRIVATE AVOCADO_BUILD_DLL)
 
 # --- Warnungen ------------------------------------------------------------
 if(MSVC)
