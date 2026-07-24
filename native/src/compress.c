@@ -3,6 +3,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 //
 #include <avocado/compress.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -68,77 +69,75 @@ void AVOCADO_DeInit(AVOCADO_Codec_t *instance)
 
 int32_t AVOCADO_Encode(AVOCADO_Codec_t instance, const char *input, char *output, uint32_t size)
 {
-    memset(output, '\0', size);
+    //
+    // Ignore the size...
+    // Assume that the encoded Bits fit into the output of size * 8 Bits.
+    //
+    (void)size;
+    const char *current_character = input;
+    int32_t current_bit = 0;
+    do {
+        const uint8_t symbol = (uint8_t)(*current_character++);
+        const uint32_t code = instance->codes.codes[symbol].code;
+        const uint32_t length = instance->codes.codes[symbol].size;
+        assert(length < (sizeof(uint32_t) * 8U));
 
-    size_t number_of_characters = strlen(input); 
-    uint32_t number_of_bits = 0U;
-    for(size_t i=0;i < number_of_characters; ++i)
-    {
-        const uint8_t symbol = (uint8_t)input[i];
-        number_of_bits += instance->codes.codes[symbol].size;
-    }
+        const int32_t byte = current_bit / 8;
+        const int32_t bit = current_bit % 8;
+        const uint8_t lo = (uint8_t)(code << bit);
+        const uint8_t hi = (uint8_t)(code >> (8 - bit)); 
 
-    output[0] = (char) ((uint8_t)(number_of_bits & 0xFFU));
-    output[1] = (char) ((uint8_t)((number_of_bits >> 8) & 0xFFU));
-    output[2] = (char) ((uint8_t)((number_of_bits >> 16) & 0xFFU));
-    output[3] = (char) ((uint8_t)((number_of_bits >> 24) & 0xFFU)); 
+        output[2 + byte] |= (char)lo;
+        output[2 + byte + 1] = (char)hi;
+        
+        current_bit += length;
+        if('\0' == symbol) break;
+    } while(1);
 
-    uint32_t current_bit = 0U;
-    for(size_t i=0U;i<number_of_characters;++i)
-    {
-        const uint8_t symbol = (uint8_t)input[i];
-        for(uint32_t j=0;j<instance->codes.codes[symbol].size;++j)
-        {
-            const uint32_t byte = current_bit / 8U;
-            const uint32_t bit = current_bit % 8U;
-            output[4U + byte] |= (instance->codes.codes[symbol].code & (1U << j)) ? (1U << bit) : 0U; 
-            current_bit++;
-        }
-    }
-    return (int32_t)number_of_bits;
+    output[0] = (char) ((uint8_t)(((uint32_t)current_bit) & 0xFFU));
+    output[1] = (char) ((uint8_t)((((uint32_t)current_bit) >> 8) & 0xFFU));
+    
+    return (int32_t)current_bit;
 }
 
 //
 // --------------------------------------------------------------------------------------------------------------------
 //
 
-int32_t AVOCADO_Decode(AVOCADO_Codec_t instance, const char *cstr, char *output, uint32_t size)
+int32_t AVOCADO_Decode(AVOCADO_Codec_t instance, const char *input, char *output, uint32_t size)
 {
     //
     // Read the number of Bits used.
     // Assume that the inputs number of Bytes fits these Bits.
     //  -> In some Cases there can be some unused Bits.
     //
-    uint32_t number_of_bits = (((uint32_t)cstr[0]) & 0xFFU) | ((((uint32_t)(cstr[1])) << 8) & 0xFF00U) | ((((uint32_t)(cstr[2])) << 24) & 0xFF0000U) | ((((uint32_t)(cstr[3])) << 24) & 0xFF000000U);
+    const uint8_t lo_number_bits = (uint8_t)input[0];
+    const uint8_t hi_number_bits = (uint8_t)input[1];
+    const uint16_t number_of_bits = ((uint16_t)lo_number_bits) | (uint16_t)(((uint16_t)hi_number_bits) << 8); 
+    if(number_of_bits >= (size * 8U))
+    {
+        return -1;
+    }
     //
     // Prepare LUT Algorithm.
     //
-    uint32_t next_output_character = 0U;
-    uint32_t buffer = 0U;
+    char *current_output_byte = output;
+    uint16_t buffer = 0U;
     uint32_t current_bit = 0U;
-    const AVOCADO_MapValue_t *value = NULL;
-    while((current_bit < number_of_bits) && (next_output_character < size))
+    do
     {
         const uint32_t byte = current_bit / 8U;
         const uint32_t bit = current_bit % 8U;
-        const uint32_t lo_byte_as_u32 = (uint32_t)((uint8_t)cstr[4 + byte]);        // If char is < 0 then Cast to uint32_t will populate Register with 1s... 
-        const uint32_t hi_byte_as_u32 = (uint32_t)((uint8_t)cstr[4 + byte + 1]);    // Therefore first cast to uint8_t, no more negative Numbers, then cast to uint32_t. 
-        const uint32_t lo_bits = lo_byte_as_u32 >> bit; 
-        const uint32_t hi_bits = hi_byte_as_u32 << (8U - bit);
+        const uint8_t lo_bits = (uint8_t)(((uint8_t)input[2 + byte]) >> bit); 
+        const uint8_t hi_bits = (uint8_t)(((uint8_t)input[2 + byte + 1]) << (8U - bit));
         buffer = (
             lo_bits | hi_bits
-        ) & 0xFFU;                                                                  // Must be Masked for the special case when bit = 0 and 8U - bit = 8. 
-
-        value = AVOCADO_MapGetValue(&instance->map, buffer);
-        if((NULL == value) || (value->number_of_bits == 0))
-        {
-            return -1;
-        }
-        current_bit += value->number_of_bits;
-
-        output[next_output_character++] = value->symbol;
-    }
-    return next_output_character < (size - 1U) ? (int32_t)next_output_character : -1;
+        );
+        const AVOCADO_MapValue_t value = AVOCADO_MapGetValue(&instance->map, buffer);
+        current_bit = (current_bit + (uint32_t)value.number_of_bits);
+        *current_output_byte++ = value.symbol;
+    } while(current_bit < number_of_bits);
+    return (int32_t)(current_output_byte - output);
 }
 
 

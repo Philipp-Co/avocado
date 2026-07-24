@@ -30,10 +30,9 @@ class TestSchema(Schema):
 # ---------------------------------------------------------------------------------------------------------------------
 #
 class TestPerformance(TestCase):
-
-
+    
     def test_run_1000_times(self) -> None:
-        N: int = 1000
+        N: int = 5000
         daten = {
             'integer_field': 0,
             'boolean_field': True,

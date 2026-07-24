@@ -12,7 +12,6 @@ typedef struct
 {
     uint8_t number_of_bits;
     char symbol;
-    void *node;
 } AVOCADO_MapValue_t;
 
 typedef struct
@@ -23,7 +22,7 @@ typedef struct
 
 void AVOCADO_InitializeMap(AVOCADO_Map_t *map);
 void AVOCADO_InitializeMapFromCodes(AVOCADO_Map_t *map, const Codes_t *codes);
-const AVOCADO_MapValue_t* AVOCADO_MapGetValue(const AVOCADO_Map_t *map, uint32_t key);
+AVOCADO_MapValue_t AVOCADO_MapGetValue(const AVOCADO_Map_t *map, uint32_t key);
 void AVOCADO_MapSetValue(AVOCADO_Map_t *map, uint32_t key, const AVOCADO_MapValue_t *value);
 
 char* AVOCADO_MapToString(const AVOCADO_Map_t *map);

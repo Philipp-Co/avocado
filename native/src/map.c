@@ -16,14 +16,10 @@ void AVOCADO_InitializeMap(AVOCADO_Map_t *map)
     memset(map->values, 0, sizeof(map->values));
 }
 
-const AVOCADO_MapValue_t* AVOCADO_MapGetValue(const AVOCADO_Map_t *map, uint32_t key)
+AVOCADO_MapValue_t AVOCADO_MapGetValue(const AVOCADO_Map_t *map, uint32_t key)
 {
     assert(key < AVOCADO_MAP_MAX_NUMBER_OF_ENTRIES);
-    if(map->values[key].number_of_bits == 0)
-    {
-        return NULL;
-    }
-    return &map->values[key];
+    return map->values[key];
 }
 
 void AVOCADO_MapSetValue(AVOCADO_Map_t *map, uint32_t key, const AVOCADO_MapValue_t *value)
@@ -57,7 +53,6 @@ void AVOCADO_InitializeMapFromCodes(AVOCADO_Map_t *map, const Codes_t *codes)
             pattern = (
                     ((uint32_t)j) << (tmp.number_of_bits)
             ) | tmp.code;
-            map_value.node = NULL;
             map_value.symbol = codes->characters[i];
             map_value.number_of_bits = (uint8_t)tmp.number_of_bits;
             AVOCADO_MapSetValue(map, pattern, &map_value);
@@ -103,8 +98,8 @@ char* AVOCADO_MapToString(const AVOCADO_Map_t *map)
     char *tmp = buffer;
     for(size_t i=0;i<AVOCADO_MAP_MAX_NUMBER_OF_ENTRIES;++i)
     {
-        const AVOCADO_MapValue_t *entry = AVOCADO_MapGetValue(map, (uint32_t)i);
-        const int len = snprintf(tmp, length - (tmp - buffer), "[%-3lu] Symbol: %-3i, #Bits: %-3i, Code: 0b%s\n", i, (int)entry->symbol, entry->number_of_bits, AVOCADO_U32ToCstr((uint32_t)i, small));
+        const AVOCADO_MapValue_t entry = AVOCADO_MapGetValue(map, (uint32_t)i);
+        const int len = snprintf(tmp, length - (tmp - buffer), "[%-3lu] Symbol: %-3i, #Bits: %-3i, Code: 0b%s\n", i, (int)entry.symbol, entry.number_of_bits, AVOCADO_U32ToCstr((uint32_t)i, small));
         tmp += len; 
     }
     return buffer;
